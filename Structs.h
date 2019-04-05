@@ -18,7 +18,7 @@ public:
 	Node *parent;
 
 	//output format "(item:frequency:code)"
-	char *out_line(size_t code_len)
+	char *out_fields(size_t code_len)
 	{
 		char* freq = inttostr(frequency);
 		int out_len = 5 + strlen(item) + strlen(freq) + code_len;
@@ -80,6 +80,20 @@ public:
 		if (this->right)	this->right->assign_codes_rec(this->code, point_true, level + 1, point_true, point_false);
 	};
 
+	//Output vertically. One level nodes is one vertical line
+	char* output_vertically(char *output, int level)
+	{
+		if (this->right) output = this->right->output_vertically(output, level + 1);
+
+		for (int i = 0; i < level; i++)
+			output = string_concat(output, "    ");
+		output = string_concat(output, string_concat(this->out_fields(level), "\n"));
+
+		if (this->left) output = this->left->output_vertically(output, level + 1);
+
+		return output;
+	};
+
 	//Output horizontally. One level nodes is one horizontal line
 	char** output_horizontally(char** output, int level, bool** scheme, bool* path, size_t width, bool* t, bool* f)
 	{
@@ -92,9 +106,9 @@ public:
 		for (int i = place - 1; i >= 0 && scheme[level][i] == 0; i--)
 			output[level] = string_concat(output[level], give_some_chars(width / pow(2, level), ' '));
 
-		output[level] = string_concat(output[level], give_some_chars(width / pow(2, level + 1) - strlen(this->out_line(level)) / 2, ' '));
-		output[level] = string_concat(output[level], this->out_line(level));
-		output[level] = string_concat(output[level], give_some_chars(width / pow(2, level + 1) - strlen(this->out_line(level)) / 2, ' '));
+		output[level] = string_concat(output[level], give_some_chars(width / pow(2, level + 1) - strlen(this->out_fields(level)) / 2, ' '));
+		output[level] = string_concat(output[level], this->out_fields(level));
+		output[level] = string_concat(output[level], give_some_chars(width / pow(2, level + 1) - strlen(this->out_fields(level)) / 2, ' '));
 
 		if (this->left) output = this->left->output_horizontally(output, level + 1, scheme, array_concat(path, f, level, 1), width, t, f);
 		if (this->right) output = this->right->output_horizontally(output, level + 1, scheme, array_concat(path, t, level, 1), width, t, f);
@@ -269,26 +283,42 @@ public:
 	{
 		if (!isEmpty())
 		{
-			size_t width = 160;	//width of console
-			int max_level = this->head->find_max_level(0, 0);
-			char** output = (char**)malloc(sizeof(char*)*(max_level + 1));
-			for (int i = 0; i < max_level + 1; i++)
-				output[i] = nullptr;
-
-			bool** scheme = (bool**)malloc(sizeof(bool*)*max_level + 1);
-			for (int i = 0; i < max_level + 1; i++)
+			if (coded)
 			{
-				scheme[i] = (bool*)malloc(sizeof(bool) * pow(2, i));
-				for (int j = 0; j < pow(2, i); j++)
-					scheme[i][j] = 0;
-			}
+				size_t width = 160;	//width of console
+				int max_level = this->head->find_max_level(0, 0);
+				char** output = (char**)malloc(sizeof(char*)*(max_level + 1));
+				for (int i = 0; i < max_level + 1; i++)
+					output[i] = nullptr;
 
-			bool t = 1, f = 0;
-			bool *point_true = &t, *point_false = &f;
-			head->output_horizontally(output, 0, scheme, nullptr, width, point_true, point_false);
-			return straighten_array(output, width, max_level + 1);
+				bool** scheme = (bool**)malloc(sizeof(bool*)*max_level + 1);
+				for (int i = 0; i < max_level + 1; i++)
+				{
+					scheme[i] = (bool*)malloc(sizeof(bool) * pow(2, i));
+					for (int j = 0; j < pow(2, i); j++)
+						scheme[i][j] = 0;
+				}
+
+				bool t = 1, f = 0;
+				bool *point_true = &t, *point_false = &f;
+				head->output_horizontally(output, 0, scheme, nullptr, width, point_true, point_false);
+				return straighten_array(output, width, max_level + 1);
+			}
 		}
 		else return "";
+	};
+
+	//Output vertically. One level nodes is one vertical line
+	char* output_vertically()
+	{
+		if (coded)
+		{
+			int max_lev = head->find_max_level(0, 0);
+			char* output = (char*)malloc(sizeof(char));
+			*output = 0;
+			output = head->output_vertically(output, 0);
+			return output;
+		}
 	};
 
 	//assign bool code according to Huffman algorithm
