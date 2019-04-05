@@ -152,30 +152,31 @@ public:
 	};
 	~List() { this->clear(); };
 
+	//
 	void get_list(char* string)
 	{
-		if (string)
-		{
-			for (int i = 0; i < strlen(string); i++)
-			{
-				bool add = 1;	//going to add a new node to the list
-				Node *cur = head;
-				while (cur && add)
+		if (!coded)
+			if (string)
+				for (int i = 0; i < strlen(string); i++)
 				{
-					if (*(cur->item) == *(string + i))
+					bool add = 1;	//going to add a new node to the list
+					Node *cur = head;
+					while (cur && add)
 					{
-						add = 0;
-						cur->frequency++;
+						if (*(cur->item) == *(string + i))
+						{
+							add = 0;
+							cur->frequency++;
+						}
+						cur = cur->next;
 					}
-					cur = cur->next;
+					if (add)
+					{
+						Node *node = new Node(give_some_chars(1, *(string + i)), 1);
+						this->insert_node_sorted_by_frequency(node);
+					}
 				}
-				if (add)
-				{
-					Node *node = new Node(give_some_chars(1, *(string + i)), 1);
-					this->insert_node_sorted_by_frequency(node);
-				}
-			}
-		}
+		else throw runtime_error("It is prohibited to add characters to coded message");
 	}
 
 	//delete all nodes
