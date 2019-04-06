@@ -59,6 +59,7 @@ public:
 		if (left) free(left);
 		if (right) free(right);
 		if (item) free(item);
+		if (code) free(code);
 	};
 
 	size_t find_max_level(size_t level, size_t max_level)
@@ -87,6 +88,10 @@ public:
 
 		for (int i = 0; i < level; i++)
 			output = string_concat(output, "    ");
+		if(level)
+			if (this == this->parent->left) output = string_concat(output, "\\");
+			else output = string_concat(output, "/");
+
 		output = string_concat(output, string_concat(this->out_fields(level), "\n"));
 
 		if (this->left) output = this->left->output_vertically(output, level + 1);
