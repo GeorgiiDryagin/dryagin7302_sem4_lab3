@@ -134,72 +134,14 @@ public:
 			if (is_in_string(this->right->item, c)) return this->right->code_message(c, level);
 		throw 
 			runtime_error("Trying to find char, that is not in huffman tree");
-		return nullptr;
 	};
 };
 
 class List
 {
 private:
-
-public:
 	Node *head;
 	Node *tail;
-	bool coded;
-	size_t coded_len;
-
-	List() 
-	{ 
-		head = nullptr;
-		tail = nullptr;
-		bool coded = 0;
-		coded_len = 0;
-	};
-	~List() { this->clear(); };
-
-	//
-	void get_list(char* string)
-	{
-		if (!coded)
-			if (string)
-				for (int i = 0; i < strlen(string); i++)
-				{
-					bool add = 1;	//going to add a new node to the list
-					Node *cur = head;
-					while (cur && add)
-					{
-						if (*(cur->item) == *(string + i))
-						{
-							add = 0;
-							cur->frequency++;
-						}
-						cur = cur->next;
-					}
-					if (add)
-					{
-						Node *node = new Node(give_some_chars(1, *(string + i)), 1);
-						this->insert_node_sorted_by_frequency(node);
-					}
-				}
-		else throw runtime_error("It is prohibited to add characters to coded message");
-	}
-
-	//delete all nodes
-	void clear()
-	{
-		if (head)
-		{
-			Node* next = head->next;
-			do
-			{
-				delete head;
-				head = next;
-				if (head) next = next->next;
-			} while (head);
-		}
-		head = nullptr;
-		tail = nullptr;
-	};
 
 	//move tail to the head for two steps
 	void false_double_pop_back()
@@ -215,6 +157,65 @@ public:
 		}
 	};
 
+	//from source message create list to contain character and frecquency
+	void get_list(char* string)
+	{
+		if (!coded)
+			if (string)
+				for (int i = 0; i < strlen(string); i++)
+				{
+					bool add = 1;	//going to add a new node to the list
+					Node *cur = head;
+					while (cur && add)
+					{
+						if (*(cur->item) == *(string + i))
+						{
+							add = 0;
+							cur->frequency++;
+
+							if (cur->previous)	//move cur to the head if it is necessary after cur->frequency++;
+								if (cur->frequency > cur->previous->frequency)
+								{
+									if (cur->frequency >= head->frequency)
+									{
+										head->previous = cur;
+										cur->previous->next = cur->next;
+										if (cur->next)
+											cur->next->previous = cur->previous;
+										else
+											tail = cur->previous;
+										cur->next = head;
+										cur->previous = nullptr;
+										head = cur;
+									}
+									else
+									{
+										Node *swap = cur->previous;
+										while (cur->frequency > swap->frequency)
+											swap = swap->previous;
+										swap->next->previous = cur;
+										cur->previous->next = cur->next;
+										if (cur->next)
+											cur->next->previous = cur->previous;
+										else
+											tail = cur->previous;
+										cur->next = swap->next;
+										swap->next = cur;
+										cur->previous = swap;
+									}
+								}
+						}
+						cur = cur->next;
+					}
+					if (add)
+					{
+						Node *node = new Node(give_some_chars(1, *(string + i)), 1);
+						this->insert_node_sorted_by_frequency(node);
+					}
+				}
+		else throw runtime_error("It is prohibited to add characters to coded message");
+	}
+
 	//add a node betwin nodes with larger and less frequances
 	void insert_node_sorted_by_frequency(Node *node)
 	{
@@ -225,13 +226,15 @@ public:
 				if (node->frequency >= head->frequency)
 				{
 					node->next = head;
+					node->previous = nullptr;
 					head->previous = node;
 					head = node;
 				}
 				else
-					if (node->frequency < tail->frequency)
+					if (node->frequency <= tail->frequency)
 					{
 						node->previous = tail;
+						node->next = nullptr;
 						tail->next = node;
 						tail = node;
 					}
@@ -255,17 +258,6 @@ public:
 		//else throw exception
 	};
 
-	//add a parent node by its sons
-	void create_tree_node(Node* left_son, Node* right_son)
-	{
-		Node *node = new Node(string_concat(left_son->item, right_son->item), left_son->frequency + right_son->frequency);
-		node->left = left_son;
-		node->right = right_son;
-		left_son->parent = node;
-		right_son->parent = node;
-		this->insert_node_sorted_by_frequency(node);
-	};
-
 	//rerun string symbol:frequency for every node 
 	char* output_frequences()
 	{
@@ -282,6 +274,82 @@ public:
 		}
 		else 
 			return "";
+	};
+
+	//add a parent node by its sons
+	void create_tree_node(Node* left_son, Node* right_son)
+	{
+		Node *node = new Node(string_concat(left_son->item, right_son->item), left_son->frequency + right_son->frequency);
+		node->left = left_son;
+		node->right = right_son;
+		left_son->parent = node;
+		right_son->parent = node;
+		this->insert_node_sorted_by_frequency(node);
+	};
+
+	//assign bool code according to Huffman algorithm
+	void assign_codes()
+	{
+		if(!isEmpty())
+			if (head == tail)
+			{
+				bool t = true, f = false, *point_true = &t, *point_false = &f;
+				head->code = nullptr;
+				head->assign_codes_rec(nullptr, nullptr, 0, point_true, point_false);
+			}
+	};
+
+	//build a tree according to Huffman algorithmm
+	void Huffman()
+	{
+		if (!isEmpty())
+		{
+			while (head != tail)
+			{
+				this->create_tree_node(tail->previous, tail);
+				this->false_double_pop_back();
+			}
+			this->assign_codes();
+			coded = 1;
+		}
+		else throw runtime_error("Huffman algorithm can not be applied to an empty list");
+	};
+
+
+public:
+	bool coded;
+	size_t coded_len;
+
+	List() 
+	{ 
+		head = nullptr;
+		tail = nullptr;
+		bool coded = 0;
+		coded_len = 0;
+	};
+	~List() { this->clear(); };
+
+	//delete all nodes
+	void clear()
+	{
+		if (head)
+		{
+			Node* next = head->next;
+			do
+			{
+				delete head;
+				head = next;
+				if (head) next = next->next;
+			} while (head);
+		}
+		head = nullptr;
+		tail = nullptr;
+	};
+
+	void full_algorithm(char *message)
+	{
+		get_list(message);
+		Huffman();
 	};
 
 	//return tree as a strimg every level of tree is on one hirizontal line and contains '\n' at the end
@@ -327,34 +395,6 @@ public:
 		}
 	};
 
-	//assign bool code according to Huffman algorithm
-	void assign_codes()
-	{
-		if(!isEmpty())
-			if (head == tail)
-			{
-				bool t = true, f = false, *point_true = &t, *point_false = &f;
-				head->code = nullptr;
-				head->assign_codes_rec(nullptr, nullptr, 0, point_true, point_false);
-			}
-	};
-
-	//build a tree according to Huffman algorithmm
-	void Huffman()
-	{
-		if (!isEmpty())
-		{
-			while (head != tail)
-			{
-				this->create_tree_node(tail->previous, tail);
-				this->false_double_pop_back();
-			}
-			this->assign_codes();
-			coded = 1;
-		}
-		else throw runtime_error("Huffman algorithm can not be applied to an empty list");
-	};
-
 	//return 0 if there is no nodes in tree, else return 1
 	bool isEmpty() { if (tail && head) return false; return true; };
 
@@ -365,17 +405,27 @@ public:
 		{
 			if (message)
 			{
-
-				bool* result = nullptr;
-				coded_len = 0;
-				for (int i = 0; i < strlen(message); i++)
+				if (head->left || head->right)
 				{
-					int level = 0;
-					bool *code = head->code_message(*(message + i), level);
-					result = array_concat(result, code, coded_len, level);
-					coded_len += level;
+					bool* result = nullptr;
+					coded_len = 0;
+					for (int i = 0; i < strlen(message); i++)
+					{
+						int level = 0;
+						bool *code = head->code_message(*(message + i), level);
+						result = array_concat(result, code, coded_len, level);
+						coded_len += level;
+					}
+					return result;
 				}
-				return result;
+				else
+				{
+					coded_len = strlen(message);
+					bool* res = (bool*)malloc(coded_len * sizeof(bool));
+					for (int i = 0; i < coded_len; i++)
+						*(res + i) = false;
+					return res;
+				}
 			}
 			else return nullptr;
 		}
@@ -384,19 +434,18 @@ public:
 	}
 
 	//translate bool array into char array, available only after List.Huffman()
-	char* decode_message(bool* coded_mess)
+	char* decode_message(bool* coded_message)
 	{
-		if (coded_mess)
+		if (coded)
 		{
-			if (coded_mess)
+			if (coded_message)
 			{
 				char* result = nullptr;
 				Node *cur = head;
-				for (int i = 0; i < coded_len; i++)
-				{
-					if (cur->left || cur->right)
+				if (cur->left || cur->right)
+					for (int i = 0; i < coded_len; i++)
 					{
-						if (!*(coded_mess + i))
+						if (!*(coded_message + i))
 							cur = cur->left;
 						else
 							cur = cur->right;
@@ -406,7 +455,8 @@ public:
 							cur = head;
 						}
 					}
-				}
+				else
+					return give_some_chars(coded_len, *(head->item));
 				return result;
 			}
 			else return nullptr;
