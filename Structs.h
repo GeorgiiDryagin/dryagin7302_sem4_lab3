@@ -1,467 +1,311 @@
 #pragma once
+
 #include "Useful.h"
 
-using namespace std;
-class Node
+struct List;
+class Haffman;
+
+class TreeNode
 {
 private:
-
+	char *val;
+	int frequency;
+	TreeNode *left;
+	TreeNode *right;
 public:
-	char* item;
-	size_t frequency;
-	bool* code;
-	Node *next;
-	Node *previous;
-
-	Node *left;
-	Node *right;
-	Node *parent;
-
-	//output format "(item:frequency:code)"
-	char *out_fields(size_t code_len)
-	{
-		char* freq = inttostr(frequency);
-		int out_len = 5 + strlen(item) + strlen(freq) + code_len;
-		char* out = (char*)malloc(sizeof(char)*(out_len));
-		int i = 0;
-		while (i < out_len)
-		{
-			out[i++] = '(';
-			for (int j = 0; j < strlen(item); j++)
-				out[i++] = item[j];
-			out[i++] = ':';
-			for (int j = 0; j < strlen(freq); j++)
-				out[i++] = freq[j];
-			out[i++] = ':';
-			if (code)
-				for (int j = 0; j < code_len; j++)
-					out[i++] = (code[j]) ? '1' : '0';
-			out[i++] = ')';
-			out[i++] = 0;
-		}
-		return out;
-	};
-
-	Node(char* new_item, size_t new_frequency)
-	{
-		item = string_copy(new_item);
-		frequency = new_frequency;
-		bool* code = nullptr;
-		next = nullptr;
-		previous = nullptr;
+	friend List;
+	friend Haffman;
+	TreeNode(char* v) {
+		val = string_copy(v);
+		frequency = 1;
 		left = nullptr;
 		right = nullptr;
-		parent = nullptr;
-	};
-
-	~Node()
+	}
+	~TreeNode()
 	{
+		if (val) free(val);
 		if (left) free(left);
 		if (right) free(right);
-		if (item) free(item);
-		if (code) free(code);
-	};
-
-	size_t find_max_level(size_t level, size_t max_level)
-	{
-		if (this->left) max_level = this->left->find_max_level(level + 1, max_level);
-		if (this->right) max_level = this->right->find_max_level(level + 1, max_level);
-
-		if (!left && !right && level > max_level) max_level = level;
-		return max_level;
-	};
-
-	//code = parent->code + 0 if this is left_son else 1
-	void assign_codes_rec(bool* prev_code, bool* this_code, size_t level, bool* point_true, bool* point_false)
-	{
-		if (this_code) 
-			this->code = array_concat(prev_code, this_code, level - 1, 1);
-
-		if (this->left)	this->left->assign_codes_rec(this->code, point_false, level + 1, point_true, point_false);
-		if (this->right)	this->right->assign_codes_rec(this->code, point_true, level + 1, point_true, point_false);
-	};
-
-	//Output vertically. One level nodes is one vertical line
-	char* output_vertically(char *output, int level)
-	{
-		if (this->right) output = this->right->output_vertically(output, level + 1);
-
-		for (int i = 0; i < level; i++)
-			output = string_concat(output, "    ");
-		if(level)
-			if (this == this->parent->left) output = string_concat(output, "\\");
-			else output = string_concat(output, "/");
-
-		output = string_concat(output, string_concat(this->out_fields(level), "\n"));
-
-		if (this->left) output = this->left->output_vertically(output, level + 1);
-
-		return output;
-	};
-
-	//Output horizontally. One level nodes is one horizontal line
-	char** output_horizontally(char** output, int level, bool** scheme, bool* path, size_t width, bool* t, bool* f)
-	{
-		//scheme[i][j] ( in i - line, j - number of the node from the left edge) = 1 - if node exists
-		//path - 0 to the left, 1 to the right, on the way from root to this node
-		//width - width of console
-		int place = binary_to_decade(path, level);	// [j] in scheme
-		scheme[level][place] = 1;
-
-		for (int i = place - 1; i >= 0 && scheme[level][i] == 0; i--)
-			output[level] = string_concat(output[level], give_some_chars(width / pow(2, level), ' '));
-
-		output[level] = string_concat(output[level], give_some_chars(width / pow(2, level + 1) - strlen(this->out_fields(level)) / 2, ' '));
-		output[level] = string_concat(output[level], this->out_fields(level));
-		output[level] = string_concat(output[level], give_some_chars(width / pow(2, level + 1) - strlen(this->out_fields(level)) / 2, ' '));
-
-		if (this->left) output = this->left->output_horizontally(output, level + 1, scheme, array_concat(path, f, level, 1), width, t, f);
-		if (this->right) output = this->right->output_horizontally(output, level + 1, scheme, array_concat(path, t, level, 1), width, t, f);
-		return output;
-
-	};
-
-	//return code of character after Huffman coding
-	bool* code_message(char c, int &level) 
-	{
-		if (!this->left && !this->right)
-			return code;
-
-		level++;
-		if (this->left)
-			if (is_in_string(this->left->item, c)) return this->left->code_message(c, level);
-		if (this->right)
-			if (is_in_string(this->right->item, c)) return this->right->code_message(c, level);
-		throw 
-			runtime_error("Trying to find char, that is not in huffman tree");
-	};
+	}
 };
 
-class List
+struct List
+{
+public:
+	friend Haffman;
+	List() { item = nullptr; next = nullptr; prev = nullptr; };
+	~List() { if (item) free(item); if (next) free(next); };
+private:
+	TreeNode* item;
+	List* next;
+	List* prev;
+};
+
+class Haffman
 {
 private:
-	Node *head;
-	Node *tail;
+	TreeNode* root;
+	List* head;
+	List* tail;
+	int code_len;
 
-	//move tail to the head for two steps
-	void false_double_pop_back()
-	{
-		if (!isEmpty())
-		{
-				tail = tail->previous;
-				if (tail)
-				{
-					tail = tail->previous;
-					tail->next = nullptr;
-				}
-		}
-	};
-
-	//from source message create list to contain character and frecquency
-	void get_list(char* string)
-	{
-		if (!coded)
-			if (string)
-				for (int i = 0; i < strlen(string); i++)
-				{
-					bool add = 1;	//going to add a new node to the list
-					Node *cur = head;
-					while (cur && add)
-					{
-						if (*(cur->item) == *(string + i))
-						{
-							add = 0;
-							cur->frequency++;
-
-							if (cur->previous)	//move cur to the head if it is necessary after cur->frequency++;
-								if (cur->frequency > cur->previous->frequency)
-								{
-									if (cur->frequency >= head->frequency)
-									{
-										head->previous = cur;
-										cur->previous->next = cur->next;
-										if (cur->next)
-											cur->next->previous = cur->previous;
-										else
-											tail = cur->previous;
-										cur->next = head;
-										cur->previous = nullptr;
-										head = cur;
-									}
-									else
-									{
-										Node *swap = cur->previous;
-										while (cur->frequency > swap->frequency)
-											swap = swap->previous;
-										swap->next->previous = cur;
-										cur->previous->next = cur->next;
-										if (cur->next)
-											cur->next->previous = cur->previous;
-										else
-											tail = cur->previous;
-										cur->next = swap->next;
-										swap->next = cur;
-										cur->previous = swap;
-									}
-								}
-						}
-						cur = cur->next;
-					}
-					if (add)
-					{
-						Node *node = new Node(give_some_chars(1, *(string + i)), 1);
-						this->insert_node_sorted_by_frequency(node);
-					}
-				}
-		else throw runtime_error("It is prohibited to add characters to coded message");
-	}
-
-	//add a node betwin nodes with larger and less frequances
-	void insert_node_sorted_by_frequency(Node *node)
-	{
-		if (!coded)
-		{
-			if (!isEmpty()) 
-			{
-				if (node->frequency >= head->frequency)
-				{
-					node->next = head;
-					node->previous = nullptr;
-					head->previous = node;
-					head = node;
-				}
-				else
-					if (node->frequency <= tail->frequency)
-					{
-						node->previous = tail;
-						node->next = nullptr;
-						tail->next = node;
-						tail = node;
-					}
-					else
-					{
-						Node* cur = head;
-						while (cur->frequency > node->frequency)
-							cur = cur->next;
-						node->previous = cur->previous;
-						if (cur->previous) cur->previous->next = node;
-						cur->previous = node;
-						node->next = cur;
-					}
-			}
-			else
-			{
-				head = node;
-				tail = node;
-			}
-		}
-		//else throw exception
-	};
-
-	//rerun string symbol:frequency for every node 
-	char* output_frequences()
-	{
-		if (!isEmpty())
-		{
-			char* out = nullptr;
-			Node* cur = head;
-			while (cur)
-			{
-				out = string_concat(out, string_concat(string_concat(cur->item, ":"),string_concat(inttostr(cur->frequency), " ")));
-				cur = cur->next;
-			}
-			return out;
-		}
-		else 
-			return "";
-	};
-
-	//add a parent node by its sons
-	void create_tree_node(Node* left_son, Node* right_son)
-	{
-		Node *node = new Node(string_concat(left_son->item, right_son->item), left_son->frequency + right_son->frequency);
-		node->left = left_son;
-		node->right = right_son;
-		left_son->parent = node;
-		right_son->parent = node;
-		this->insert_node_sorted_by_frequency(node);
-	};
-
-	//assign bool code according to Huffman algorithm
-	void assign_codes()
-	{
-		if(!isEmpty())
-			if (head == tail)
-			{
-				bool t = true, f = false, *point_true = &t, *point_false = &f;
-				head->code = nullptr;
-				head->assign_codes_rec(nullptr, nullptr, 0, point_true, point_false);
-			}
-	};
-
-	//build a tree according to Huffman algorithmm
-	void Huffman()
-	{
-		if (!isEmpty())
-		{
-			while (head != tail)
-			{
-				this->create_tree_node(tail->previous, tail);
-				this->false_double_pop_back();
-			}
-			this->assign_codes();
-			coded = 1;
-		}
-		else throw runtime_error("Huffman algorithm can not be applied to an empty list");
-	};
-
-
-public:
-	bool coded;
-	size_t coded_len;
-
-	List() 
-	{ 
-		head = nullptr;
-		tail = nullptr;
-		bool coded = 0;
-		coded_len = 0;
-	};
-	~List() { this->clear(); };
-
-	//delete all nodes
-	void clear()
+	void li()
 	{
 		if (head)
 		{
-			Node* next = head->next;
-			do
+			List* cur = head;
+			while (cur)
 			{
-				delete head;
-				head = next;
-				if (head) next = next->next;
-			} while (head);
+				cout << cur->item->val << cur->item->frequency << " ";
+				cur = cur->next;
+			}
+			cout << endl;
 		}
+	}
+
+	void sort_list()
+	{
+		List* cur = head->next;
+		while (cur)
+		{
+			List* next_to_sort = cur->next;
+			List* place = cur->prev; //to place after it
+			while (place && place->item->frequency < cur->item->frequency)
+			{
+				if (place->item->frequency < cur->item->frequency) place = place->prev;
+			}
+			if (place != cur->prev)
+				if (!place)
+				{
+					if (cur->next) cur->next->prev = cur->prev;
+					if (cur->prev) cur->prev->next = cur->next;
+					head->prev = cur;
+					cur->prev = nullptr;
+					cur->next = head;
+					head = cur;
+				}
+				else
+				{
+					if (cur->next) cur->next->prev = cur->prev;
+					if (cur->prev) cur->prev->next = cur->next;
+					place->next->prev = cur;
+					cur->next = place->next;
+					place->next = cur;
+					cur->prev = place;
+				}
+
+			if (cur->next == nullptr) tail = cur;
+			cur = next_to_sort;
+		}
+	}
+
+	void push_sorted_descending(TreeNode* val)
+	{
+		if (!head)	//add as first
+		{
+			head = new List;
+			head->item = val;
+			tail = head;
+		}
+		else
+		{
+			if (val->frequency > head->item->frequency)	//add as first
+			{
+				List* node = new List;
+				node->item = val;
+				node->next = head;
+				head->prev = node;
+				head = node;
+			}
+			else
+			{
+				List* cur = head;
+				while (cur->next)
+				{
+					if (val->frequency > cur->next->item->frequency)	//if we need to insert between cur & cur->next
+					{
+						List* node = new List;
+						node->item = val;
+
+						node->next = cur->next;
+						node->prev = cur;
+						cur->next->prev = node;
+						cur->next = node;
+						return;
+					}
+					if (string_compare(cur->item->val, val->val) == 0)	//no need to add
+					{
+						cur->item->frequency++;
+						free(val);
+						return;
+					}
+					cur = cur->next;
+				}
+
+				if (string_compare(cur->item->val, val->val) == 0) 	//no need to add
+				{
+					cur->item->frequency++;
+					free(val);
+				}
+				else
+				{
+					cur->next = new List;		//add as last	//check if null
+					cur->next->next = nullptr;
+					cur->next->prev = cur;
+					cur->next->item = val;
+					tail = cur->next;
+				}
+			}
+
+		}
+	};
+
+	void pop_back_twice()
+	{
+		if (head && (head != tail)) //if there at least one list-node
+		{
+			if (tail->prev->prev) //if there more than one list-node
+			{
+				tail = tail->prev->prev;
+				free(tail->next);
+				tail->next = nullptr;
+			}
+		}
+	};
+
+	void get_list(char *message)
+	{
+		if (message)
+		{
+			if (strlen(message) > 0)
+			{
+				for (int i = 0; i < strlen(message); i++)
+				{
+					push_sorted_descending(new TreeNode(give_some_chars(1, message[i])));
+				}
+			}
+			else throw invalid_argument("String is empty");
+		}
+		else throw invalid_argument("No string to code");
+	};
+
+	void buid_tree()
+	{
+		while (head != tail)
+		{
+			TreeNode* node = new TreeNode(string_concat(tail->item->val, tail->prev->item->val));
+			node->frequency = tail->item->frequency + tail->prev->item->frequency;
+			node->left = tail->item;
+			node->right = tail->prev->item;
+			push_sorted_descending(node);
+			pop_back_twice();
+		}
+		root = head->item;
+	}
+
+public:
+	Haffman()
+	{
+		root = nullptr;
 		head = nullptr;
 		tail = nullptr;
 	};
-
-	void full_algorithm(char *message)
+	
+	~Haffman()
 	{
-		get_list(message);
-		Huffman();
+		if (root) free(root);
+		if (head) free(head);
 	};
 
-	//return tree as a strimg every level of tree is on one hirizontal line and contains '\n' at the end
-	char* output_horizontally()
+	bool *code_message(char* message)
 	{
-		if (!isEmpty())
-		{
-			if (coded)
-			{
-				size_t width = 160;	//width of console
-				int max_level = this->head->find_max_level(0, 0);
-				char** output = (char**)malloc(sizeof(char*)*(max_level + 1));
-				for (int i = 0; i < max_level + 1; i++)
-					output[i] = nullptr;
-
-				bool** scheme = (bool**)malloc(sizeof(bool*)*max_level + 1);
-				for (int i = 0; i < max_level + 1; i++)
-				{
-					scheme[i] = (bool*)malloc(sizeof(bool) * pow(2, i));
-					for (int j = 0; j < pow(2, i); j++)
-						scheme[i][j] = 0;
-				}
-
-				bool t = 1, f = 0;
-				bool *point_true = &t, *point_false = &f;
-				head->output_horizontally(output, 0, scheme, nullptr, width, point_true, point_false);
-				return straighten_array(output, width, max_level + 1);
-			}
-		}
-		else return "";
-	};
-
-	//Output vertically. One level nodes is one vertical line
-	char* output_vertically()
-	{
-		if (coded)
-		{
-			int max_lev = head->find_max_level(0, 0);
-			char* output = (char*)malloc(sizeof(char));
-			*output = 0;
-			output = head->output_vertically(output, 0);
-			return output;
-		}
-	};
-
-	//return 0 if there is no nodes in tree, else return 1
-	bool isEmpty() { if (tail && head) return false; return true; };
-
-	//translate char array into bool array, available only after List.Huffman()
-	bool* code_message(char* message)
-	{
-		if (coded)
+		code_len = 0;
 		{
 			if (message)
 			{
-				if (head->left || head->right)
+				if (strlen(message))
 				{
-					bool* result = nullptr;
-					coded_len = 0;
-					for (int i = 0; i < strlen(message); i++)
+					get_list(message);
+					sort_list();
+					buid_tree();
+
+					bool* res;
+					if (root->left && root->right)
 					{
-						int level = 0;
-						bool *code = head->code_message(*(message + i), level);
-						result = array_concat(result, code, coded_len, level);
-						coded_len += level;
+						res = nullptr;
+						bool tr = true;
+						bool fa = false;
+						for (int i = 0; i < strlen(message); i++)
+						{
+							TreeNode* cur = root;
+
+							while (cur->left)
+							{
+								if (is_in_string(cur->left->val, message[i]))
+								{
+									cur = cur->left;
+									res = array_concat(res, &tr, code_len, 1);
+								}
+								else
+									if (is_in_string(cur->right->val, message[i]))
+									{
+										cur = cur->right;
+										res = array_concat(res, &fa, code_len, 1);
+									}
+								code_len++;
+							}
+						}
 					}
-					return result;
-				}
-				else
-				{
-					coded_len = strlen(message);
-					bool* res = (bool*)malloc(coded_len * sizeof(bool));
-					for (int i = 0; i < coded_len; i++)
-						*(res + i) = false;
+					else
+					{
+						res = (bool*)malloc(strlen(message) * sizeof(bool));
+						for (int i = 0; i < strlen(message); i++)
+							res[i] = true;
+						code_len = strlen(message);
+					}
 					return res;
 				}
+				else throw invalid_argument("Message is empty");
 			}
-			else return nullptr;
+			else throw invalid_argument("Message is empty");
 		}
-		else return nullptr;
-		//	throw runtime_error("List.code_message available only after List.Huffman()");
 	}
 
-	//translate bool array into char array, available only after List.Huffman()
-	char* decode_message(bool* coded_message)
+	char* decode_message(bool* code)
 	{
-		if (coded)
+		if (code)
 		{
-			if (coded_message)
+			if (root)
 			{
-				char* result = nullptr;
-				Node *cur = head;
-				if (cur->left || cur->right)
-					for (int i = 0; i < coded_len; i++)
+				char* message = nullptr;
+				if (root->left && root->right)
+				{
+					TreeNode* cur = root;
+					for (int i = 0; i < code_len; i++)
 					{
-						if (!*(coded_message + i))
+						if (code[i] == true)
 							cur = cur->left;
 						else
 							cur = cur->right;
-						if (!cur->left && !cur->right)
+
+						if (!cur->left)	//cur is leaf
 						{
-							result = string_concat(result, cur->item);
-							cur = head;
+							message = string_concat(message, cur->val);
+							cur = root;
 						}
 					}
+				}
 				else
-					return give_some_chars(coded_len, *(head->item));
-				return result;
+				{
+					message = (char*)malloc((code_len + 1) * sizeof(char));
+					for (int i = 0; i < code_len; i++)
+						message[i] = root->val[0];
+					message[code_len] = 0;
+				}
+				return message;
 			}
-			else return nullptr;
+			else throw runtime_error("No given message to code");
 		}
-		else
-			throw runtime_error("List.decode_message available only after List.Huffman()");
+		else throw invalid_argument("No code");
 	}
 };
