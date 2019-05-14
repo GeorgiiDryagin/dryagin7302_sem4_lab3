@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "CppUnitTest.h"
-#include "../aisd_lab4_3/List.h"
-#include "../aisd_lab4_3/Useful.h"
+#include "../Проект2/Haffman.h"
+#include "../Проект2/Useful.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -11,83 +11,65 @@ namespace UnitTest1
 	{
 	public:
 		
-		TEST_METHOD(one_letter_message)
-		{
-			char* message = "aaaa";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::AreEqual(0, string_compare(message, list.decode_message(list.code_message(message))));
-		}
-
-		TEST_METHOD(empty_message)
-		{
-			char* message = "";
-			List list;
-			list.coded = 0;
-			try
-			{
-				list.full_algorithm(message);
-			}
-			catch (std::runtime_error e)
-			{
-				Assert::AreEqual("Huffman algorithm can not be applied to an empty list", e.what());
-			}
-		}
-
-		TEST_METHOD(equal_frecuences)
-		{
-			char* message = "abcdefgabcdefg";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::AreEqual(0, string_compare(message, list.decode_message(list.code_message(message))));
-		}
-
-		TEST_METHOD(downgrade_frequences)
-		{
-			char* message = "aaaabbbccd";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::IsTrue(0 == string_compare(message, list.decode_message(list.code_message(message))));
-		}
-
-		TEST_METHOD(upgrade_frequences)
-		{
-			char* message = "abbcccdddd";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::AreEqual(0, string_compare(message, list.decode_message(list.code_message(message))));
-		}
-
-		TEST_METHOD(Shakespear)
-		{
-			char* message = "Nothing emboldens sin so much as mercy.";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::AreEqual(0, string_compare(message, list.decode_message(list.code_message(message))));
-		}
-
-		TEST_METHOD(Caesar)
-		{
-			char* message = "Veni, vidi, vici!";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::AreEqual(0, string_compare(message, list.decode_message(list.code_message(message))));
-		}
-
 		TEST_METHOD(Lorem_ipsum)
 		{
-			char* message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.Ut congue tellus in vulputate pharetra.Nam vitae luctus est.Ut vestibulum.";
-			List list;
-			list.coded = 0;
-			list.full_algorithm(message);
-			Assert::AreEqual(0, string_compare(message, list.decode_message(list.code_message(message))));
+			Haffman a;
+			char *message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam in velit non augue luctus maximus. Praesent scelerisque sem justo, a volutpat mi semper laoreet. Aliquam sed diam nulla. Curabitur quis justo sit amet erat lobortis faucibus eu at orci. Ut sed sodales elit, non blandit nisl. Nulla id aliquam lectus, in placerat sem. Praesent in.";
+			Assert::AreEqual(0, string_compare(message, a.decode_message(a.code_message(message))));
 		}
 
+		TEST_METHOD(caesar)
+		{
+			Haffman a;
+			char *message = "Veni, vidi, vici";
+			Assert::AreEqual(0, string_compare(message, a.decode_message(a.code_message(message))));
+		}
+
+		TEST_METHOD(one_letter)
+		{
+			Haffman a;
+			char *message = "a";
+			Assert::AreEqual(0, string_compare(message, a.decode_message(a.code_message(message))));
+		}
+
+		TEST_METHOD(one_letter_multiple)
+		{
+			Haffman a;
+			char *message = "aaaa";
+			Assert::AreEqual(0, string_compare(message, a.decode_message(a.code_message(message))));
+		}
+
+		TEST_METHOD(two_letter)
+		{
+			Haffman a;
+			char *message = "abaababaa";
+			Assert::AreEqual(0, string_compare(message, a.decode_message(a.code_message(message))));
+		}
+
+		TEST_METHOD(empty_string)
+		{
+			Haffman a;
+			try
+			{
+				a.code_message("");
+			}
+			catch (invalid_argument e)
+			{
+				Assert::AreEqual(e.what(), "Message is empty");
+			}
+		}
+
+		TEST_METHOD(null_string)
+		{
+			Haffman a;
+			try
+			{
+				a.code_message(nullptr);
+			}
+			catch (invalid_argument e)
+			{
+				Assert::AreEqual(e.what(), "Message is empty");
+			}
+		}
 	};
 }
