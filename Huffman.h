@@ -3,7 +3,7 @@
 #include "Useful.h"
 
 struct List;
-class Haffman;
+class Huffman;
 
 class TreeNode
 {
@@ -14,7 +14,7 @@ private:
 	TreeNode *right;
 public:
 	friend List;
-	friend Haffman;
+	friend Huffman;
 	TreeNode(char* v) {
 		val = string_copy(v);
 		frequency = 1;
@@ -32,7 +32,7 @@ public:
 struct List
 {
 public:
-	friend Haffman;
+	friend Huffman;
 	List() { item = nullptr; next = nullptr; prev = nullptr; };
 	~List() { if (item) free(item); if (next) free(next); };
 private:
@@ -41,27 +41,13 @@ private:
 	List* prev;
 };
 
-class Haffman
+class Huffman
 {
 private:
 	TreeNode* root;
 	List* head;
 	List* tail;
 	int code_len;
-
-	void li()
-	{
-		if (head)
-		{
-			List* cur = head;
-			while (cur)
-			{
-				cout << cur->item->val << cur->item->frequency << " ";
-				cur = cur->next;
-			}
-			cout << endl;
-		}
-	}
 
 	void sort_list()
 	{
@@ -204,18 +190,34 @@ private:
 	}
 
 public:
-	Haffman()
+	Huffman()
 	{
 		root = nullptr;
 		head = nullptr;
 		tail = nullptr;
 	};
 	
-	~Haffman()
+	~Huffman()
 	{
 		if (root) free(root);
 		if (head) free(head);
 	};
+
+	int get_code_len() { return code_len; };
+
+	void list_output()
+	{
+		if (head)
+		{
+			List* cur = head;
+			while (cur)
+			{
+				cout << cur->item->val << cur->item->frequency << " ";
+				cur = cur->next;
+			}
+			cout << endl;
+		}
+	}
 
 	bool *code_message(char* message)
 	{
@@ -307,5 +309,20 @@ public:
 			else throw runtime_error("No given message to code");
 		}
 		else throw invalid_argument("No code");
+	}
+
+	void out_code(char* message)
+	{
+		bool* res = code_message(message);
+		for (int i = 0; i < code_len; i++)
+			cout << res[i];
+		cout << endl;
+	}
+
+	float coef(char *mess)
+	{
+		float t = ((float)strlen(mess) * 8.0);
+		float f = code_len / t;
+		return f;
 	}
 };
