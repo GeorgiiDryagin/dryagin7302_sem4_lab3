@@ -9,6 +9,14 @@
 
 using namespace std;
 
+template <typename T>
+void output_array(T* array, int size)
+{
+	if (array && size > 0)
+		for (int i = 0; i < size; i++)
+			cout << *(array + i);
+}
+
 //convert binary array to decade number
 int binary_to_decade(bool* bi, size_t array_len)
 {
